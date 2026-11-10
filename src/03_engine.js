@@ -162,7 +162,15 @@ const wait = ms => new Promise(res=>{ const id=setTimeout(()=>{P.waiters.delete(
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const pl=document.getElementById("vplayer"); if(pl&&pl.classList.contains("full")){ pl.classList.remove("full"); document.body.style.overflow=""; const f=document.getElementById("vFull"); if(f) f.textContent="⛶"; } } });
 function stopAll(){ document.body.style.overflow=""; if(P.audio){ try{ P.audio.pause(); }catch(e){} } P.gen++; P.playing=false; if(P.tts){ try{ P.tts.stop(); }catch(e){} } if(P.cd){ clearInterval(P.cd); P.cd=null; } P.waiters.forEach(r=>{ clearTimeout(r._id); r(); }); P.waiters.clear(); updateControls(); }
 function secOf(spec,i){ let s=""; for(let k=0;k<=i;k++) if(spec.sc[k].h) s=spec.sc[k].h; return s; }
-function defaultHold(sc){ return ({cards:4.5,formula:4,compare:3.5,table:3,title:1.5,think:0.3})[sc.v.type] ?? 2.6; }
+function defaultHold(sc){ return ({cards:2.2,formula:1.6,compare:1.6,table:1.2,title:0.6,think:0.2})[sc.v.type] ?? 0.5; }
+function holdOf(sc){ return Math.min(sc.hold ?? defaultHold(sc), defaultHold(sc)); }
+function sceneLen(tid,i){ const sc=V[tid].sc[i], a=(AUD[tid]||[])[i]; const speech=a? a.d : (sc.b||[]).reduce((x,t)=>x+est(t),0); return speech + holdOf(sc) + (sc.v.type==="think"?(sc.v.secs||10):0); }
+const fmtT=s=>{ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+function videoPos(){ const spec=V[P.tid]; if(!spec) return [0,0]; let tot=0, el=0; for(let i=0;i<spec.sc.length;i++){ const L=sceneLen(P.tid,i); tot+=L; if(i<P.i) el+=L; }
+  const a=(AUD[P.tid]||[])[P.i]; if(P.step>=99) el+=sceneLen(P.tid,P.i); else if(P.audio && a && P.audio.src.endsWith("/"+P.tid+"/"+String(P.i).padStart(2,"0")+".mp3")) el+=Math.min(P.audio.currentTime,a.d); else if(a && P.step>=0) el+=a.s[Math.min(P.step,a.s.length-1)]||0;
+  return [el/P.rate, tot/P.rate]; }
+function updTime(){ const si=$("#scInfo"); if(!si||!V[P.tid]) return; const [e,t]=videoPos(); si.textContent=`${fmtT(e)} / ${fmtT(t)} · Sahne ${P.i+1}/${V[P.tid].sc.length}`; }
+setInterval(()=>{ if(P.playing) updTime(); },500);
 var openVideo_=0;
 function openVideo(tid){ stopAll(); P.tid=tid; P.i=0; P.step=-1; renderPbar(); loadScene(0); bindPlayer(); }
 function loadScene(i){ const spec=V[P.tid]; P.i=i; P.step=-1; const sc=spec.sc[i]; P.sc=sc;
@@ -177,7 +185,7 @@ function renderCap(sc,k){ const c=$("#cap"); if(!c) return; const b=sc.b||[]; c.
 function renderPbar(){ const spec=V[P.tid]; const pb=$("#pbar"); if(!pb) return; pb.innerHTML=spec.sc.map((s,i)=>`<button class="seg${s.h&&i?" secstart":""}" data-i="${i}" type="button" title="${esc((i+1)+". "+s.t)}"></button>`).join(""); }
 function updateControls(){ const spec=V[P.tid]; if(!spec) return; const pb=$("#pbar"); if(pb) pb.querySelectorAll(".seg").forEach(el=>{ const i=+el.dataset.i; el.classList.toggle("done",i<P.i); el.classList.toggle("cur",i===P.i); });
   const pl=$("#vPlay"); if(pl) pl.textContent = P.playing ? "⏸ Duraklat" : (P.i===0&&P.step<0 ? "▶ Oynat" : "▶ Devam");
-  const si=$("#scInfo"); if(si) si.textContent=`Sahne ${P.i+1}/${spec.sc.length}${P.tts?"":" · sessiz mod"}`;
+  const si=$("#scInfo"); if(si) updTime();
   const vb=$("#vVoice"); if(vb){ vb.hidden=!P.tts; vb.classList.toggle("on",P.voice); vb.textContent=P.voice?"🔊 Sesli":"🔇 Sessiz"; } }
 function note(t){ const n=$("#vnote"); if(n) n.textContent=t; }
 async function play(){ if(P.playing) return; const spec=V[P.tid]; if(!spec) return; P.playing=true; const gen=++P.gen; updateControls(); note("");
@@ -189,7 +197,7 @@ function playAudio(sc,gen,from){ const a=(AUD[P.tid]||[])[P.i]; if(!a) return Pr
   return new Promise(res=>{ const el=P.audio||(P.audio=new Audio()); el.preload="auto"; const src="audio/"+P.tid+"/"+String(P.i).padStart(2,"0")+".mp3";
     let settled=false; const fin=v=>{ if(settled) return; settled=true; el.ontimeupdate=el.onended=el.onerror=null; res(v); };
     if(!el.src.endsWith(src)) el.src=src; el.playbackRate=P.rate;
-    const go=()=>{ try{ el.currentTime=a.s[from]||0; }catch(e){} el.play().then(()=>{}).catch(()=>fin(null)); };
+    const go=()=>{ try{ el.currentTime=a.s[from]||0; }catch(e){} el.defaultPlaybackRate=P.rate; el.playbackRate=P.rate; el.play().then(()=>{ el.playbackRate=P.rate; }).catch(()=>fin(null)); };
     el.ontimeupdate=()=>{ if(gen!==P.gen){ el.pause(); return fin(false); } let k=0; for(let j=0;j<a.s.length;j++) if(el.currentTime+0.05>=a.s[j]) k=j; if(k!==P.step && k>=from) reveal(k); };
     el.onended=()=>fin(gen===P.gen); el.onerror=()=>fin(null);
     if(el.readyState>=1) go(); else el.onloadedmetadata=()=>{ el.onloadedmetadata=null; go(); };
@@ -207,7 +215,7 @@ async function runScene(sc,gen){ const beats=sc.b||[]; let from=P.step+1;
   if(gen!==P.gen) return false;
   setStep(99); renderCap(sc,99); P.step=beats.length;
   if(sc.v.type==="think"){ if(!(await countdown(sc.v.secs||10,gen))) return false; }
-  await wait((sc.hold??defaultHold(sc))*1000); return gen===P.gen; }
+  await wait(holdOf(sc)*1000/P.rate); return gen===P.gen; }
 async function runTimed(beats,gen,from){ for(let k=from;k<beats.length;k++){ if(gen!==P.gen) return false; reveal(k); await wait(est(beats[k])/P.rate*1000); } return gen===P.gen; }
 function countdown(secs,gen){ return new Promise(res=>{ let left=secs; const n=$("#stage .th-n"), c=$("#stage .fgc"); const circ=2*Math.PI*44; if(c){ c.style.strokeDasharray=circ; c.style.strokeDashoffset=0; }
   const tick=()=>{ if(gen!==P.gen){ clearInterval(P.cd); P.cd=null; return res(false); } if(n) n.textContent=left; if(c) c.style.strokeDashoffset=circ*(1-left/secs); if(left<=0){ clearInterval(P.cd); P.cd=null; return res(true); } left--; };
@@ -222,7 +230,7 @@ function bindPlayer(){ const pl=$("#vplayer"); if(!pl||pl.dataset.bound) return;
   $("#vVoice").addEventListener("click",()=>{ P.voice=!P.voice; LS.set("voice",P.voice); if(!P.voice && P.tts){ try{P.tts.stop();}catch(e){} } updateControls(); if(P.playing){ const st=P.step; stopAll(); P.step=st; play(); } });
   const toggleFull=()=>{ const pl=$("#vplayer"); if(!pl) return; const on=!pl.classList.contains("full"); pl.classList.toggle("full",on); document.body.style.overflow=on?"hidden":""; $("#vFull").textContent=on?"⤡":"⛶"; };
   $("#vFull").addEventListener("click",toggleFull); $("#vClose").addEventListener("click",toggleFull);
-  $("#vRate").addEventListener("change",e=>{ P.rate=+e.target.value; if(P.audio) P.audio.playbackRate=P.rate; if(P.tts){ try{ P.tts.setRate(P.rate); }catch(err){} } });
+  $("#vRate").addEventListener("change",e=>{ P.rate=+e.target.value; if(P.audio) P.audio.playbackRate=P.rate; if(P.tts){ try{ P.tts.setRate(P.rate); }catch(err){} } updTime(); });
   $("#stage").addEventListener("click",e=>{ const b=e.target.closest("[data-end]"); if(!b) return; const a=b.dataset.end; if(a==="replay"){ loadScene(0); play(); } else if(a==="script"){ tab="senaryo"; LS.set("tab",tab); renderLesson(); } else if(a==="next"){ go(cur+1); } });
   $("#stage").addEventListener("keydown",e=>{ if(e.key===" "){ e.preventDefault(); $("#vPlay").click(); } else if(e.key==="ArrowRight"){ $("#vNext").click(); } else if(e.key==="ArrowLeft"){ $("#vPrev").click(); } });
   P.voice = LS.get("voice", true); $("#vRate").value=String(P.rate); updateControls(); }

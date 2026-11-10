@@ -179,7 +179,7 @@ function renderLesson(){
         <span class="scinfo" id="scInfo"></span>
         <span class="sp"></span>
         <button class="ib" id="vVoice" type="button" title="Sesli anlatım">🔊 Sesli</button>
-        <select id="vRate" aria-label="Hız"><option value="0.85">0.85×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option></select>
+        <select id="vRate" aria-label="Hız"><option value="0.85">0.85×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
         <button class="ib" id="vFull" type="button" title="Büyüt / küçült">⛶</button>
       </div>
       <div class="cap" id="cap"></div>
