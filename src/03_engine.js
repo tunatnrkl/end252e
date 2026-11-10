@@ -163,6 +163,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const pl=document
 function stopAll(){ document.body.style.overflow=""; P.gen++; P.playing=false; if(P.tts){ try{ P.tts.stop(); }catch(e){} } if(P.cd){ clearInterval(P.cd); P.cd=null; } P.waiters.forEach(r=>{ clearTimeout(r._id); r(); }); P.waiters.clear(); updateControls(); }
 function secOf(spec,i){ let s=""; for(let k=0;k<=i;k++) if(spec.sc[k].h) s=spec.sc[k].h; return s; }
 function defaultHold(sc){ return ({cards:4.5,formula:4,compare:3.5,table:3,title:1.5,think:0.3})[sc.v.type] ?? 2.6; }
+var openVideo_=0;
 function openVideo(tid){ stopAll(); P.tid=tid; P.i=0; P.step=-1; renderPbar(); loadScene(0); bindPlayer(); }
 function loadScene(i){ const spec=V[P.tid]; P.i=i; P.step=-1; const sc=spec.sc[i]; P.sc=sc;
   const stage=$("#stage"); if(!stage) return;

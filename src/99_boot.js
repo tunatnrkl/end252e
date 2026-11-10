@@ -12,7 +12,11 @@ renderLog();
 function makeBrowserTTS(){
   const ss = window.speechSynthesis; if(!ss || typeof SpeechSynthesisUtterance==="undefined") return null;
   let lineCb=null, stateCb=null, rate=1, token=0;
-  const pickVoice=()=>{ const vs=ss.getVoices(); return vs.find(v=>/^tr(-|_|$)/i.test(v.lang)) || null; };
+  const FEM=/yelda|emel|filiz|seda|ayşe|ayse|zeynep|google türkçe|google turkish|female|kadın/i, MAL=/\bcem\b|tolga|ahmet|male|erkek/i;
+  const trVoices=()=>ss.getVoices().filter(v=>/^tr(-|_|$)/i.test(v.lang));
+  const score=v=>(/natural|neural|online|premium|enhanced|siri/i.test(v.name)?5:0)+(FEM.test(v.name)?3:0)-(MAL.test(v.name)?6:0)+(v.localService?0:1);
+  const pickVoice=()=>{ let want=LS.get("voiceName",null); const vs=trVoices(); return vs.find(v=>v.name===want) || vs.sort((a,b)=>score(b)-score(a))[0] || null; };
+  setTimeout(()=>{ const sel=document.getElementById("vVoicePick"); },0);
   return {
     onLine(f){ lineCb=f; }, onState(f){ stateCb=f; },
     setRate(r){ rate=r; },
@@ -41,7 +45,7 @@ function makeBrowserTTS(){
 (async()=>{
   let t=null;
   try{ t = window.claude ? await window.claude.use("tts") : null; }catch(e){ t=null; }
-  if(!t){ t = makeBrowserTTS(); if(t){ try{ speechSynthesis.getVoices(); }catch(e){} } }
+  if(!t){ t = makeBrowserTTS(); if(t){ try{ speechSynthesis.getVoices(); }catch(e){} P.browserTTS=true; } }
   P.tts = t;
   if(P.tts){
     try{ P.tts.onLine(({id})=>{ const k=+id; if(P.playing && !isNaN(k) && P.sc) reveal(k); }); }catch(e){}
@@ -49,3 +53,16 @@ function makeBrowserTTS(){
   } else { note("Bu tarayıcıda sesli anlatım yok; video altyazılı ve zamanlı olarak oynar."); }
   updateControls();
 })();
+
+/* voice picker (browser voices only) */
+function fillVoicePick(){
+  const sel=document.getElementById("vVoicePick"); if(!sel||!P.browserTTS) return;
+  const vs=speechSynthesis.getVoices().filter(v=>/^tr(-|_|$)/i.test(v.lang)); if(!vs.length){ sel.hidden=true; return; }
+  const cur=LS.get("voiceName",null);
+  sel.innerHTML='<option value="">Otomatik (kadın sesi)</option>'+vs.map(v=>`<option value="${esc(v.name)}" ${v.name===cur?"selected":""}>${esc(v.name)}</option>`).join("");
+  sel.hidden=false;
+  if(!sel.dataset.b){ sel.dataset.b="1"; sel.addEventListener("change",()=>{ LS.set("voiceName",sel.value||null); }); }
+}
+try{ speechSynthesis.addEventListener("voiceschanged",fillVoicePick); }catch(e){}
+document.addEventListener("click",e=>{ if(e.target.closest("#vplayer")) fillVoicePick(); });
+const _openVideo=openVideo; openVideo=function(t){ _openVideo(t); setTimeout(fillVoicePick,50); };
