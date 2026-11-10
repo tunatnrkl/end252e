@@ -160,7 +160,7 @@ const P = { tid:null, i:0, step:-1, playing:false, gen:0, voice:true, rate:1, tt
 const est = t => Math.max(2.2, t.length/13.5);
 const wait = ms => new Promise(res=>{ const id=setTimeout(()=>{P.waiters.delete(res); res();}, ms); res._id=id; P.waiters.add(res); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const pl=document.getElementById("vplayer"); if(pl&&pl.classList.contains("full")){ pl.classList.remove("full"); document.body.style.overflow=""; const f=document.getElementById("vFull"); if(f) f.textContent="⛶"; } } });
-function stopAll(){ document.body.style.overflow=""; P.gen++; P.playing=false; if(P.tts){ try{ P.tts.stop(); }catch(e){} } if(P.cd){ clearInterval(P.cd); P.cd=null; } P.waiters.forEach(r=>{ clearTimeout(r._id); r(); }); P.waiters.clear(); updateControls(); }
+function stopAll(){ document.body.style.overflow=""; if(P.audio){ try{ P.audio.pause(); }catch(e){} } P.gen++; P.playing=false; if(P.tts){ try{ P.tts.stop(); }catch(e){} } if(P.cd){ clearInterval(P.cd); P.cd=null; } P.waiters.forEach(r=>{ clearTimeout(r._id); r(); }); P.waiters.clear(); updateControls(); }
 function secOf(spec,i){ let s=""; for(let k=0;k<=i;k++) if(spec.sc[k].h) s=spec.sc[k].h; return s; }
 function defaultHold(sc){ return ({cards:4.5,formula:4,compare:3.5,table:3,title:1.5,think:0.3})[sc.v.type] ?? 2.6; }
 var openVideo_=0;
@@ -185,7 +185,18 @@ async function play(){ if(P.playing) return; const spec=V[P.tid]; if(!spec) retu
     const sc=spec.sc[P.i]; const ok=await runScene(sc,gen); if(!ok) return;
     if(P.i<spec.sc.length-1){ loadScene(P.i+1); } else { P.playing=false; showEnd(); updateControls(); return; }
   } }
+function playAudio(sc,gen,from){ const a=(AUD[P.tid]||[])[P.i]; if(!a) return Promise.resolve(null);
+  return new Promise(res=>{ const el=P.audio||(P.audio=new Audio()); el.preload="auto"; const src="audio/"+P.tid+"/"+String(P.i).padStart(2,"0")+".mp3";
+    let settled=false; const fin=v=>{ if(settled) return; settled=true; el.ontimeupdate=el.onended=el.onerror=null; res(v); };
+    if(!el.src.endsWith(src)) el.src=src; el.playbackRate=P.rate;
+    const go=()=>{ try{ el.currentTime=a.s[from]||0; }catch(e){} el.play().then(()=>{}).catch(()=>fin(null)); };
+    el.ontimeupdate=()=>{ if(gen!==P.gen){ el.pause(); return fin(false); } let k=0; for(let j=0;j<a.s.length;j++) if(el.currentTime+0.05>=a.s[j]) k=j; if(k!==P.step && k>=from) reveal(k); };
+    el.onended=()=>fin(gen===P.gen); el.onerror=()=>fin(null);
+    if(el.readyState>=1) go(); else el.onloadedmetadata=()=>{ el.onloadedmetadata=null; go(); };
+    P.audioGen=gen; });
+}
 async function runScene(sc,gen){ const beats=sc.b||[]; let from=P.step+1;
+  if(from<beats.length && P.voice){ const r=await playAudio(sc,gen,from); if(r===false||gen!==P.gen) return false; if(r===true){ from=beats.length; } }
   if(from<beats.length){
     if(P.voice && P.tts){
       const lines=beats.slice(from).map((t,k)=>({text:t,id:String(from+k),language:"tr"}));
@@ -211,7 +222,7 @@ function bindPlayer(){ const pl=$("#vplayer"); if(!pl||pl.dataset.bound) return;
   $("#vVoice").addEventListener("click",()=>{ P.voice=!P.voice; LS.set("voice",P.voice); if(!P.voice && P.tts){ try{P.tts.stop();}catch(e){} } updateControls(); if(P.playing){ const st=P.step; stopAll(); P.step=st; play(); } });
   const toggleFull=()=>{ const pl=$("#vplayer"); if(!pl) return; const on=!pl.classList.contains("full"); pl.classList.toggle("full",on); document.body.style.overflow=on?"hidden":""; $("#vFull").textContent=on?"⤡":"⛶"; };
   $("#vFull").addEventListener("click",toggleFull); $("#vClose").addEventListener("click",toggleFull);
-  $("#vRate").addEventListener("change",e=>{ P.rate=+e.target.value; if(P.tts){ try{ P.tts.setRate(P.rate); }catch(err){} } });
+  $("#vRate").addEventListener("change",e=>{ P.rate=+e.target.value; if(P.audio) P.audio.playbackRate=P.rate; if(P.tts){ try{ P.tts.setRate(P.rate); }catch(err){} } });
   $("#stage").addEventListener("click",e=>{ const b=e.target.closest("[data-end]"); if(!b) return; const a=b.dataset.end; if(a==="replay"){ loadScene(0); play(); } else if(a==="script"){ tab="senaryo"; LS.set("tab",tab); renderLesson(); } else if(a==="next"){ go(cur+1); } });
   $("#stage").addEventListener("keydown",e=>{ if(e.key===" "){ e.preventDefault(); $("#vPlay").click(); } else if(e.key==="ArrowRight"){ $("#vNext").click(); } else if(e.key==="ArrowLeft"){ $("#vPrev").click(); } });
   P.voice = LS.get("voice", true); $("#vRate").value=String(P.rate); updateControls(); }

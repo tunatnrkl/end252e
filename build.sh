@@ -1,6 +1,6 @@
 #!/bin/bash
 S=src
-{ cat $S/01_head.html; echo '<script>'; cat $S/02_app.js $S/03_engine.js $S/04_test.js $S/05_dict.js; for f in $S/1*_v*.js; do cat "$f"; done; cat $S/99_boot.js; echo '</script>'; } > end252e.html
+{ cat $S/01_head.html; echo '<script>'; cat $S/02_app.js $S/03_engine.js $S/04_test.js $S/05_dict.js $S/06_audio.js; for f in $S/1*_v*.js; do cat "$f"; done; cat $S/99_boot.js; echo '</script>'; } > end252e.html
 node -e "
 const fs=require('fs');const s=fs.readFileSync('end252e.html','utf8');const m=s.match(/<script>([\s\S]*)<\/script>/);
 try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('SYNTAX ERROR',e.message);process.exit(1)}
