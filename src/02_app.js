@@ -139,7 +139,7 @@ const LS = {
 };
 let cut = Math.min(LS.get("cut", 10), T.length-1);
 let cur = 0;
-let tab = LS.get("tab", "video");
+let tab = LS.get("tab", "video"); if(tab!=="video"&&tab!=="ozet") tab="video";
 let mode = "topic";           // "topic" | "test"
 let notes = LS.get("notes", "");
 const $ = s => document.querySelector(s);
@@ -166,7 +166,7 @@ function renderLesson(){
   if(mode==="test"){ renderTest(); return; }
   const t = T[cur], done = cur <= cut, vd = V[t.id];
   let h = `<div class="meta"><span class="pill ${done?"done":"fut"}">${done?"İşlendi":"Henüz işlenmedi"}</span><span class="pill en">${esc(t.en)}</span></div><h2>${esc(t.title)}</h2>`;
-  h += `<div class="tabs" role="tablist">${[["video","▶ Video"],["ozet","Konu özeti"],["senaryo","Senaryo & ders notu"]].map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-tab="${k}" type="button" role="tab">${l}</button>`).join("")}</div>`;
+  h += `<div class="tabs" role="tablist">${[["video","▶ Video"],["ozet","Konu özeti"]].map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-tab="${k}" type="button" role="tab">${l}</button>`).join("")}</div>`;
   if(!done) h += `<div class="future-note" style="margin-bottom:16px">Bu konu listende henüz işlenmedi olarak görünüyor. Videoyu ve özeti yine de izleyebilirsin; asistan bu konuda sadece kısa ön bilgi verir.</div>`;
   if(tab==="video"){
     h += vd ? `<div class="player" id="vplayer">

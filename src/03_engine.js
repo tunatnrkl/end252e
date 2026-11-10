@@ -152,7 +152,7 @@ const R = {
     if(v.h) s+=tx(480,42,v.h,{fs:24,anchor:"middle",w:600});
     (v.steps||[]).forEach((l,k)=>{ s+=tx(480,500,l,{fs:26,anchor:"middle",fill:SC.warm,mono:true,w:600,s:2+k,only:true}); });
     return svgo(s); },
-  end(v){ return `<div class="v-end"><div class="vt-k" style="font-size:1.6cqw;color:var(--stage-acc);letter-spacing:.14em;text-transform:uppercase;font-weight:600">Video tamamlandı</div><h2>${esc(v.title)}</h2><p>Senaryo sekmesinde tüm sahneler, özet kartları ve boşluklu ders notu şablonu var.</p><div class="row"><button type="button" data-end="replay">↻ Baştan izle</button><button type="button" class="g" data-end="script">Senaryo & ders notu</button>${v.next?`<button type="button" class="g" data-end="next">Sonraki konu: ${esc(v.next)} →</button>`:""}</div></div>`; }
+  end(v){ return `<div class="v-end"><div class="vt-k" style="font-size:1.6cqw;color:var(--stage-acc);letter-spacing:.14em;text-transform:uppercase;font-weight:600">Video tamamlandı</div><h2>${esc(v.title)}</h2><div class="row"><button type="button" data-end="replay">↻ Baştan izle</button>${v.next?`<button type="button" class="g" data-end="next">Sonraki konu: ${esc(v.next)} →</button>`:""}</div></div>`; }
 };
 
 /* ---------- Player ---------- */
